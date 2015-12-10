@@ -8,6 +8,7 @@
 <font size="-1">
 <%
 String query = (String) request.getParameter("q");
+query = StringEscapeUtils.escapeHtml4(query).replaceAll("'", "&#39");
 
 if (request.getMethod().equals("GET") && query != null){
         if (query.replaceAll("\\s", "").toLowerCase().indexOf("<script>alert(\"xss\")</script>") >= 0) {
@@ -15,25 +16,37 @@ if (request.getMethod().equals("GET") && query != null){
         }
     
 %>
+
 <b>You searched for:</b> <%= query %><br/><br/>
 <%  
 
-  Statement stmt = conn.createStatement();
+  PreparedStatement stmt = null;
 	ResultSet rs = null;  
-        query = StringEscapeUtils.escapeHtml4(query).replaceAll("'", "&#39");
+        
+        
+        //sanitizing query
+        //out.println(StringEscapeUtils.escapeHtml4(query));
 
 	try {
-                String sql = "SELECT PRODUCT, DESC, TYPE, TYPEID, PRICE " +
+                /*String sql = "SELECT PRODUCT, DESC, TYPE, TYPEID, PRICE " +
                              "FROM PRODUCTS AS a JOIN PRODUCTTYPES AS b " +
                              "ON a.TYPEID = b.TYPEID " +
                              "WHERE PRODUCT LIKE '%" + query + "%' OR " + 
                              "DESC LIKE '%" + query + "%' OR PRICE LIKE '%" + query + "%' " +
-                             "OR TYPE LIKE '%" + query + "%'";                                
-                
-                if ("true".equals(request.getParameter("debug")))
-                    out.println(sql);
-                
-		rs = stmt.executeQuery(sql);
+                             "OR TYPE LIKE '%" + query + "%'";*/
+                             
+                String sql = "SELECT PRODUCT, DESC, TYPE, TYPEID, PRICE " +
+                        "FROM PRODUCTS AS a JOIN PRODUCTTYPES AS b " +
+                        "ON a.TYPEID = b.TYPEID " +
+                        "WHERE PRODUCT LIKE '% ? %' OR " + 
+                        "DESC LIKE '% ? %' OR PRICE LIKE '% ? %' " +
+                        "OR TYPE LIKE '% ? %'";
+          
+                //if ("true".equals(request.getParameter("debug")))
+                //    out.println(sql);
+        
+        stmt = conn.prepareStatement(sql);
+		rs = stmt.executeQuery();
               
                 int count = 0;
                 String output = "";
@@ -55,8 +68,9 @@ if (request.getMethod().equals("GET") && query != null){
                     out.println("<div><b>No Results Found</b></div>");
                 }
         } catch (Exception e) {
-		if ("true".equals(request.getParameter("debug"))) {
-			stmt.execute("UPDATE Score SET status = 1 WHERE task = 'HIDDEN_DEBUG'");
+		if ("true".equals(request.getParameter("debug"))) {			
+			stmt = conn.prepareStatement("UPDATE Score SET status = 1 WHERE task = 'HIDDEN_DEBUG'");
+			stmt.executeUpdate();
 			out.println("DEBUG System error: " + e + "<br/><br/>");
 		} else {
 			out.println("System error.");
